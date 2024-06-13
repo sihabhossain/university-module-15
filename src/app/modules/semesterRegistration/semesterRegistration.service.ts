@@ -4,6 +4,7 @@ import { AcademicSemester } from '../academicSemester/academicSemester.model';
 import { TSemesterRegistration } from './semesterRegistration.interface';
 import { SemesterRegistration } from './semesterRegistration.model';
 import QueryBuilder from '../../builder/QueryBuilder';
+import { RegistrationStatus } from './semesterRegistration.constant';
 
 const createSemesterRegistrationIntoDB = async (
   payload: TSemesterRegistration,
@@ -13,7 +14,10 @@ const createSemesterRegistrationIntoDB = async (
   // check if theres any registered semester that is already "Upcoming" | "Ongoing"
   const isThereAnyUpcomingOrOngoingSemester =
     await SemesterRegistration.findOne({
-      $or: [{ status: 'UPCOMING' }, { status: 'ONGOING' }],
+      $or: [
+        { status: RegistrationStatus.UPCOMING },
+        { status: RegistrationStatus.ONGOING },
+      ],
     });
 
   if (isThereAnyUpcomingOrOngoingSemester) {
@@ -83,7 +87,7 @@ const updateSemesterRegistrationIntoDB = async (
   const currentSemesterStatus = isSemesterRegistrationExists?.status;
   const requestedStatus = payload?.status;
 
-  if (currentSemesterStatus === 'ENDED') {
+  if (currentSemesterStatus === RegistrationStatus.ENDED) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       'This academic semester registration has ended',
@@ -91,15 +95,22 @@ const updateSemesterRegistrationIntoDB = async (
   }
 
   // ->UPCOMING->ONGOING->ENDED
-  if (currentSemesterStatus === 'ONGOING' && requestedStatus === 'UPCOMING') {
+  if (
+    currentSemesterStatus === RegistrationStatus.ONGOING &&
+    requestedStatus === RegistrationStatus.UPCOMING
+  ) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       `you can not change status from ${currentSemesterStatus} to ${requestedStatus}`,
     );
   }
 
+  const result = await SemesterRegistration.findByIdAndUpdate(id, payload, {
+    new: true,
+    runValidators: true,
+  });
 
-  const result = await SemesterRegistration.findByIdAndUpdate(id)
+  return result;
 };
 
 const deleteSemesterRegistrationFromDB = async (id: string) => {};
